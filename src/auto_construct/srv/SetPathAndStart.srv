@@ -1,20 +1,15 @@
-# 设定地图 + 覆盖路径并立即开始导航
+# 指定地图目录，节点自动从中找到地图文件和路径文件并开始导航
 #
-# 首次调用必须提供 map_file；之后若地图不变可省略 map_file。
-#
-# 示例1 — 首次 (或切换地图):
+# 示例:
 #   ros2 service call /coverage_path_executor/set_path_and_start \
 #       auto_construct/srv/SetPathAndStart \
-#       "{map_file:  '/home/nic/ROS/ROS/map/maps/map_A/pcd2pgm_map.yaml',
-#         path_file: '/home/nic/ROS/ROS/map/maps/map_A/coverage_path_cache.yaml'}"
+#       "{map_dir: '/home/nic/ROS/ROS/map/maps/map_20260329_211503'}"
 #
-# 示例2 — 仅换路径 (沿用上次地图):
-#   ros2 service call /coverage_path_executor/set_path_and_start \
-#       auto_construct/srv/SetPathAndStart \
-#       "{path_file: '/home/nic/ROS/ROS/map/maps/map_A/coverage_path_cache.yaml'}"
+# 识别规则 (按内容自动判断，与文件名无关):
+#   地图文件 — YAML 中含 image: 字段  (Nav2 map_server 格式)
+#   路径文件 — YAML 中含 poses: 字段  (opennav_coverage 格式)
 
-string path_file    # 覆盖路径 YAML 完整路径 (必填)
-string map_file     # 2D 地图 YAML 完整路径  (首次必填；之后省略=沿用上次地图)
+string map_dir   # 地图目录完整路径 (必填)
 ---
 bool   success
 string message

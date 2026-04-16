@@ -7,23 +7,16 @@ bringup.launch.py
 使用方法:
     ros2 launch auto_construct bringup.launch.py
 
-启动后，用 Service 传入地图 + 路径并开始导航:
+启动后，只需给出地图目录即可开始导航:
     ros2 service call /coverage_path_executor/set_path_and_start \\
         auto_construct/srv/SetPathAndStart \\
-        "{map_file:  '/home/nic/ROS/ROS/map/maps/map_A/pcd2pgm_map.yaml',
-          path_file: '/home/nic/ROS/ROS/map/maps/map_A/coverage_path_cache.yaml'}"
+        "{map_dir: '/home/nic/ROS/ROS/map/maps/map_20260329_211503'}"
 
-切换到另一张地图并重新导航 (先 cancel 当前任务):
+切换到另一张地图 (先 cancel):
     ros2 service call /coverage_path_executor/cancel std_srvs/srv/Trigger {}
     ros2 service call /coverage_path_executor/set_path_and_start \\
         auto_construct/srv/SetPathAndStart \\
-        "{map_file:  '/home/nic/ROS/ROS/map/maps/map_B/pcd2pgm_map.yaml',
-          path_file: '/home/nic/ROS/ROS/map/maps/map_B/coverage_path_cache.yaml'}"
-
-仅换路径 (沿用当前地图):
-    ros2 service call /coverage_path_executor/set_path_and_start \\
-        auto_construct/srv/SetPathAndStart \\
-        "{path_file: '/home/nic/ROS/ROS/map/maps/map_A/coverage_path_cache.yaml'}"
+        "{map_dir: '/home/nic/ROS/ROS/map/maps/map_20260401_090000'}"
 
 其他控制:
     ros2 service call /coverage_path_executor/pause  std_srvs/srv/Trigger {}
@@ -122,8 +115,7 @@ def launch_setup(context, *args, **kwargs):
         LogInfo(msg='[bringup] 示例:'),
         LogInfo(msg='[bringup]   ros2 service call /coverage_path_executor/set_path_and_start \\'),
         LogInfo(msg='[bringup]       auto_construct/srv/SetPathAndStart \\'),
-        LogInfo(msg='[bringup]       "{map_file: \'<地图目录>/pcd2pgm_map.yaml\','),
-        LogInfo(msg='[bringup]         path_file: \'<地图目录>/coverage_path_cache.yaml\'}"'),
+        LogInfo(msg='[bringup]       "{map_dir: \'<地图目录完整路径>\'}"'),
         LogInfo(msg='[bringup] ══════════════════════════════════════════════'),
         map_server_node,
         lc_map,

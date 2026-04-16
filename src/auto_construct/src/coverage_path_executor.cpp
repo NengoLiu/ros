@@ -211,6 +211,64 @@ bool CoveragePathExecutor::reloadMap(const std::string & map_file)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// 目录扫描 — 按内容自动识别地图文件和路径文件
+// ─────────────────────────────────────────────────────────────────────────────
+
+bool CoveragePathExecutor::discoverFiles(
+    const std::string & map_dir,
+    std::string       & map_file,
+    std::string       & path_file,
+    std::string       & error_msg)
+{
+    if (!fs::exists(map_dir) || !fs::is_directory(map_dir)) {
+        error_msg = "目录不存在: " + map_dir;
+        return false;
+    }
+
+    map_file.clear();
+    path_file.clear();
+
+    for (const auto & entry : fs::directory_iterator(map_dir)) {
+        if (!entry.is_regular_file()) continue;
+        if (entry.path().extension() != ".yaml") continue;
+
+        try {
+            YAML::Node root = YAML::LoadFile(entry.path().string());
+
+            // 地图文件特征: 含 image 字段 (Nav2 map_server occupancy grid 格式)
+            if (map_file.empty() && root["image"]) {
+                map_file = entry.path().string();
+                continue;
+            }
+
+            // 路径文件特征: 含 poses 字段 (opennav_coverage 格式)
+            if (path_file.empty()) {
+                YAML::Node sect = root["path"] ? root["path"] : root;
+                if (sect["poses"]) {
+                    path_file = entry.path().string();
+                }
+            }
+
+        } catch (...) {
+            // 跳过无法解析的文件
+        }
+    }
+
+    if (map_file.empty()) {
+        error_msg = "目录中未找到地图文件 (需含 image: 字段的 .yaml): " + map_dir;
+        return false;
+    }
+    if (path_file.empty()) {
+        error_msg = "目录中未找到路径文件 (需含 poses: 字段的 .yaml): " + map_dir;
+        return false;
+    }
+
+    RCLCPP_INFO(get_logger(), "发现地图文件: %s", map_file.c_str());
+    RCLCPP_INFO(get_logger(), "发现路径文件: %s", path_file.c_str());
+    return true;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // 控制服务回调
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -223,38 +281,42 @@ void CoveragePathExecutor::svcSetPathAndStart(
         res->message = "任务已在执行中，请先调用 ~/cancel";
         return;
     }
-    if (req->path_file.empty()) {
+    if (req->map_dir.empty()) {
         res->success = false;
-        res->message = "path_file 不能为空";
+        res->message = "map_dir 不能为空";
         return;
     }
 
-    // 切换地图
-    if (!req->map_file.empty()) {
-        RCLCPP_INFO(get_logger(), "切换地图: %s", req->map_file.c_str());
-        if (!reloadMap(req->map_file)) {
-            res->success = false;
-            res->message = "地图切换失败: " + req->map_file;
-            return;
-        }
-    } else if (!map_loaded_) {
+    // 扫目录，自动识别地图文件和路径文件
+    std::string map_file, path_file, err;
+    if (!discoverFiles(req->map_dir, map_file, path_file, err)) {
         res->success = false;
-        res->message = "首次调用必须提供 map_file (当前无地图)";
+        res->message = err;
         return;
     }
 
-    if (!loadPath(req->path_file)) {
+    // 热切换地图
+    if (!reloadMap(map_file)) {
         res->success = false;
-        res->message = "路径加载失败: " + req->path_file;
+        res->message = "地图切换失败: " + map_file;
         return;
     }
-    path_file_ = req->path_file;
+
+    // 加载路径
+    if (!loadPath(path_file)) {
+        res->success = false;
+        res->message = "路径加载失败: " + path_file;
+        return;
+    }
+
+    path_file_ = path_file;
     resetState();
     exec_thread_ = std::thread(&CoveragePathExecutor::runExecution, this);
     exec_thread_.detach();
     res->success = true;
-    res->message = "已加载路径并开始导航，共 " + std::to_string(total_) + " 个路径点"
-                   + (req->map_file.empty() ? "" : " (地图已切换)");
+    res->message = "开始导航，共 " + std::to_string(total_) + " 个路径点"
+                   "\n  地图: " + map_file +
+                   "\n  路径: " + path_file;
 }
 
 void CoveragePathExecutor::svcStart(const Trigger::Request::SharedPtr /*req*/,

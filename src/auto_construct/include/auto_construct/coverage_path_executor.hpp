@@ -91,6 +91,21 @@ private:
      */
     bool reloadMap(const std::string & map_file);
 
+    /**
+     * 扫描目录，按内容自动识别地图文件和路径文件。
+     *   地图文件 — 含 image: 字段 (Nav2 map_server 格式)
+     *   路径文件 — 含 poses: 字段 (opennav_coverage 格式)
+     * @param[out] map_file   识别到的地图文件完整路径
+     * @param[out] path_file  识别到的路径文件完整路径
+     * @param[out] error_msg  失败原因
+     * @return true  两个文件均找到
+     * @return false 目录不存在 / 找不到其中一个文件
+     */
+    bool discoverFiles(const std::string & map_dir,
+                       std::string       & map_file,
+                       std::string       & path_file,
+                       std::string       & error_msg);
+
     // ── 控制服务回调 ──────────────────────────────────────────────────────────
     void svcSetPathAndStart(const SetPathAndStart::Request::SharedPtr req,
                             SetPathAndStart::Response::SharedPtr       res);
