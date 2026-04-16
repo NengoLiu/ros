@@ -206,6 +206,7 @@ bool CoveragePathExecutor::reloadMap(const std::string & map_file)
     }
 
     RCLCPP_INFO(get_logger(), "地图切换成功: %s", map_file.c_str());
+    map_loaded_ = true;
     return true;
 }
 
@@ -228,7 +229,7 @@ void CoveragePathExecutor::svcSetPathAndStart(
         return;
     }
 
-    // 切换地图（map_file 非空时）
+    // 切换地图
     if (!req->map_file.empty()) {
         RCLCPP_INFO(get_logger(), "切换地图: %s", req->map_file.c_str());
         if (!reloadMap(req->map_file)) {
@@ -236,6 +237,10 @@ void CoveragePathExecutor::svcSetPathAndStart(
             res->message = "地图切换失败: " + req->map_file;
             return;
         }
+    } else if (!map_loaded_) {
+        res->success = false;
+        res->message = "首次调用必须提供 map_file (当前无地图)";
+        return;
     }
 
     if (!loadPath(req->path_file)) {

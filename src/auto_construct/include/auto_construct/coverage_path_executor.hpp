@@ -133,6 +133,7 @@ private:
     std::string frame_id_;
     bool        skip_on_failure_{true};
     bool        autostart_{false};
+    bool        map_loaded_{false};   ///< 是否已通过 load_map 加载过地图
 
     // ─────────────────────────────────────────────────────────────────────────
     // ROS 接口
