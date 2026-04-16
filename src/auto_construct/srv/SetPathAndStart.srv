@@ -1,9 +1,18 @@
-# 设定覆盖路径文件并立即开始导航
-# 示例:
+# 设定覆盖路径 (+ 可选换图) 并立即开始导航
+#
+# 示例1 — 仅换路径 (沿用当前地图):
 #   ros2 service call /coverage_path_executor/set_path_and_start \
 #       auto_construct/srv/SetPathAndStart \
-#       "{path_file: '/home/nic/ROS/ROS/map/maps/map_20260329_211503/coverage_path_cache.yaml'}"
-string path_file
+#       "{path_file: '/home/nic/ROS/ROS/map/maps/map_A/coverage_path_cache.yaml'}"
+#
+# 示例2 — 同时换地图 + 路径:
+#   ros2 service call /coverage_path_executor/set_path_and_start \
+#       auto_construct/srv/SetPathAndStart \
+#       "{path_file: '/home/nic/ROS/ROS/map/maps/map_B/coverage_path_cache.yaml',
+#         map_file:  '/home/nic/ROS/ROS/map/maps/map_B/pcd2pgm_map.yaml'}"
+
+string path_file    # 覆盖路径 YAML 完整路径 (必填)
+string map_file     # 2D 地图 YAML 完整路径  (选填，空字符串=保持当前地图)
 ---
 bool   success
 string message

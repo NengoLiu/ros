@@ -77,6 +77,10 @@ void CoveragePathExecutor::setupInterfaces()
     nav_client_ = rclcpp_action::create_client<NavigateThroughPoses>(
         this, "navigate_through_poses", cb_group_);
 
+    map_client_ = create_client<LoadMap>(
+        "/map_server/load_map",
+        rmw_qos_profile_services_default, cb_group_);
+
     const auto qos = rmw_qos_profile_services_default;
     set_path_srv_ = create_service<SetPathAndStart>("~/set_path_and_start",
         [this](auto rq, auto rs){ svcSetPathAndStart(rq, rs); }, qos, cb_group_);
@@ -169,6 +173,43 @@ bool CoveragePathExecutor::loadPath(const std::string & path_file)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// 地图热切换
+// ─────────────────────────────────────────────────────────────────────────────
+
+bool CoveragePathExecutor::reloadMap(const std::string & map_file)
+{
+    if (!fs::exists(map_file)) {
+        RCLCPP_ERROR(get_logger(), "地图文件不存在: %s", map_file.c_str());
+        return false;
+    }
+
+    if (!map_client_->wait_for_service(std::chrono::seconds(5))) {
+        RCLCPP_ERROR(get_logger(), "/map_server/load_map 服务不可用，请确认 Nav2 已启动");
+        return false;
+    }
+
+    auto req = std::make_shared<LoadMap::Request>();
+    req->map_url = map_file;
+
+    auto future = map_client_->async_send_request(req);
+    if (future.wait_for(std::chrono::seconds(10)) != std::future_status::ready) {
+        RCLCPP_ERROR(get_logger(), "地图加载超时 (>10s): %s", map_file.c_str());
+        return false;
+    }
+
+    const auto result = future.get()->result;
+    if (result != LoadMap::Response::RESULT_SUCCESS) {
+        RCLCPP_ERROR(get_logger(),
+            "地图加载失败，错误码=%d，文件: %s",
+            static_cast<int>(result), map_file.c_str());
+        return false;
+    }
+
+    RCLCPP_INFO(get_logger(), "地图切换成功: %s", map_file.c_str());
+    return true;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // 控制服务回调
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -186,6 +227,17 @@ void CoveragePathExecutor::svcSetPathAndStart(
         res->message = "path_file 不能为空";
         return;
     }
+
+    // 切换地图（map_file 非空时）
+    if (!req->map_file.empty()) {
+        RCLCPP_INFO(get_logger(), "切换地图: %s", req->map_file.c_str());
+        if (!reloadMap(req->map_file)) {
+            res->success = false;
+            res->message = "地图切换失败: " + req->map_file;
+            return;
+        }
+    }
+
     if (!loadPath(req->path_file)) {
         res->success = false;
         res->message = "路径加载失败: " + req->path_file;
@@ -196,7 +248,8 @@ void CoveragePathExecutor::svcSetPathAndStart(
     exec_thread_ = std::thread(&CoveragePathExecutor::runExecution, this);
     exec_thread_.detach();
     res->success = true;
-    res->message = "已加载路径并开始导航，共 " + std::to_string(total_) + " 个路径点";
+    res->message = "已加载路径并开始导航，共 " + std::to_string(total_) + " 个路径点"
+                   + (req->map_file.empty() ? "" : " (地图已切换)");
 }
 
 void CoveragePathExecutor::svcStart(const Trigger::Request::SharedPtr /*req*/,

@@ -34,6 +34,7 @@
 
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <nav2_msgs/action/navigate_through_poses.hpp>
+#include <nav2_msgs/srv/load_map.hpp>
 #include <std_msgs/msg/bool.hpp>
 #include <std_msgs/msg/float32.hpp>
 #include <std_msgs/msg/string.hpp>
@@ -50,6 +51,7 @@ using NavGoalHandle        = rclcpp_action::ClientGoalHandle<NavigateThroughPose
 using Trigger              = std_srvs::srv::Trigger;
 using PoseStamped          = geometry_msgs::msg::PoseStamped;
 using SetPathAndStart      = auto_construct::srv::SetPathAndStart;
+using LoadMap              = nav2_msgs::srv::LoadMap;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CoveragePathExecutor
@@ -81,6 +83,13 @@ private:
      * @return false 文件不存在 / 格式错误
      */
     bool loadPath(const std::string & path_file);
+
+    /**
+     * 通过 /map_server/load_map 热切换 Nav2 地图。
+     * @return true  切换成功
+     * @return false 服务不可用 / 文件不存在 / 超时
+     */
+    bool reloadMap(const std::string & map_file);
 
     // ── 控制服务回调 ──────────────────────────────────────────────────────────
     void svcSetPathAndStart(const SetPathAndStart::Request::SharedPtr req,
@@ -131,6 +140,7 @@ private:
     rclcpp::CallbackGroup::SharedPtr cb_group_;
 
     rclcpp_action::Client<NavigateThroughPoses>::SharedPtr nav_client_;
+    rclcpp::Client<LoadMap>::SharedPtr                     map_client_;
 
     rclcpp::Service<SetPathAndStart>::SharedPtr set_path_srv_;
     rclcpp::Service<Trigger>::SharedPtr         start_srv_;
