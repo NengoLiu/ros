@@ -40,13 +40,14 @@ def launch_setup(context, *args, **kwargs):
     map_dir       = LaunchConfiguration('map_dir').perform(context)
     use_sim_time  = LaunchConfiguration('use_sim_time').perform(context)
     params_file   = LaunchConfiguration('params_file').perform(context)
+    map_filename  = LaunchConfiguration('map_filename').perform(context)
 
-    map_yaml_file = os.path.join(map_dir, 'map.yaml')
+    map_yaml_file = os.path.join(map_dir, map_filename)
 
     if not os.path.exists(map_yaml_file):
         raise FileNotFoundError(
             f'[navigation.launch] 地图文件不存在: {map_yaml_file}\n'
-            f'请确认 map_dir 参数正确，且目录内有 map.yaml 文件。'
+            f'请确认 map_dir 和 map_filename 参数正确。'
         )
 
     sim_time_bool = use_sim_time.lower() in ('true', '1', 'yes')
@@ -148,6 +149,11 @@ def generate_launch_description():
             'use_sim_time',
             default_value='false',
             description='是否使用仿真时间',
+        ),
+        DeclareLaunchArgument(
+            'map_filename',
+            default_value='pcd2pgm_map.yaml',
+            description='2D 地图 YAML 文件名 (map_dir 目录下)',
         ),
         OpaqueFunction(function=launch_setup),
     ])

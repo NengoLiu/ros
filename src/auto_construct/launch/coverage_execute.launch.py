@@ -86,7 +86,7 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'path_filename',
-            default_value='path.yaml',
+            default_value='coverage_path_cache.yaml',
             description='路径 YAML 文件名 (map_dir 目录下的文件名)',
         ),
         DeclareLaunchArgument(
