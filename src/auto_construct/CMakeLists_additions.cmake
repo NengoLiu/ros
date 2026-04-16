@@ -19,11 +19,11 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 )
 
 # ── 可执行目标 ───────────────────────────────────────────────────────────────
-add_executable(coverage_path_executor
-  src/coverage_path_executor.cpp
+add_executable(coverage_path
+  src/coverage_path.cpp
 )
 
-target_include_directories(coverage_path_executor PUBLIC
+target_include_directories(coverage_path PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
@@ -32,7 +32,7 @@ install(DIRECTORY include/
   DESTINATION include/
 )
 
-ament_target_dependencies(coverage_path_executor
+ament_target_dependencies(coverage_path
   rclcpp
   rclcpp_action
   nav2_msgs
@@ -46,13 +46,13 @@ ament_target_dependencies(coverage_path_executor
 rosidl_get_typesupport_target(cpp_typesupport_target
   ${PROJECT_NAME} "rosidl_typesupport_cpp")
 
-target_link_libraries(coverage_path_executor
+target_link_libraries(coverage_path
   yaml-cpp
   "${cpp_typesupport_target}"
 )
 
 # ── 安装可执行文件 ────────────────────────────────────────────────────────────
-install(TARGETS coverage_path_executor
+install(TARGETS coverage_path
   DESTINATION lib/${PROJECT_NAME}
 )
 

@@ -21,15 +21,15 @@ coverage_execute.launch.py
     └── path.yaml   ← 你的覆盖路径 YAML
 
 手动控制:
-    ros2 service call /coverage_path_executor/start  std_srvs/srv/Trigger {}
-    ros2 service call /coverage_path_executor/pause  std_srvs/srv/Trigger {}
-    ros2 service call /coverage_path_executor/resume std_srvs/srv/Trigger {}
-    ros2 service call /coverage_path_executor/cancel std_srvs/srv/Trigger {}
+    ros2 service call /coverage_path/start  std_srvs/srv/Trigger {}
+    ros2 service call /coverage_path/pause  std_srvs/srv/Trigger {}
+    ros2 service call /coverage_path/resume std_srvs/srv/Trigger {}
+    ros2 service call /coverage_path/cancel std_srvs/srv/Trigger {}
 
 监控进度:
-    ros2 topic echo /coverage_path_executor/progress
-    ros2 topic echo /coverage_path_executor/status
-    ros2 topic echo /coverage_path_executor/done
+    ros2 topic echo /coverage_path/progress
+    ros2 topic echo /coverage_path/status
+    ros2 topic echo /coverage_path/done
 """
 
 import os
@@ -57,8 +57,8 @@ def launch_setup(context, *args, **kwargs):
 
     executor_node = Node(
         package='auto_construct',
-        executable='coverage_path_executor',
-        name='coverage_path_executor',
+        executable='coverage_path',
+        name='coverage_path',
         output='screen',
         emulate_tty=True,     # 让进度条 \r 在终端正常刷新
         parameters=[{

@@ -1,13 +1,13 @@
 /**
- * coverage_path_executor.cpp
+ * coverage_path.cpp
  *
  * 覆盖路径执行节点 — 实现文件
- * 所有方法均定义于 namespace auto_construct::CoveragePathExecutor
+ * 所有方法均定义于 namespace auto_construct::CoveragePath
  *
- * 参见 include/auto_construct/coverage_path_executor.hpp 获取接口说明。
+ * 参见 include/auto_construct/coverage_path.hpp 获取接口说明。
  */
 
-#include "auto_construct/coverage_path_executor.hpp"
+#include "auto_construct/coverage_path.hpp"
 
 #include <cstdio>
 #include <filesystem>
@@ -21,8 +21,8 @@ namespace auto_construct
 // 构造 / 析构
 // ─────────────────────────────────────────────────────────────────────────────
 
-CoveragePathExecutor::CoveragePathExecutor(const rclcpp::NodeOptions & opts)
-: Node("coverage_path_executor", opts)
+CoveragePath::CoveragePath(const rclcpp::NodeOptions & opts)
+: Node("coverage_path", opts)
 {
     declareAndGetParams();
     setupInterfaces();
@@ -41,7 +41,7 @@ CoveragePathExecutor::CoveragePathExecutor(const rclcpp::NodeOptions & opts)
     }
 }
 
-CoveragePathExecutor::~CoveragePathExecutor()
+CoveragePath::~CoveragePath()
 {
     cancelled_.store(true);
     if (exec_thread_.joinable()) {
@@ -53,7 +53,7 @@ CoveragePathExecutor::~CoveragePathExecutor()
 // 初始化
 // ─────────────────────────────────────────────────────────────────────────────
 
-void CoveragePathExecutor::declareAndGetParams()
+void CoveragePath::declareAndGetParams()
 {
     declare_parameter<std::string>("path_file",       "");
     declare_parameter<std::string>("frame_id",        "map");
@@ -70,7 +70,7 @@ void CoveragePathExecutor::declareAndGetParams()
     }
 }
 
-void CoveragePathExecutor::setupInterfaces()
+void CoveragePath::setupInterfaces()
 {
     cb_group_ = create_callback_group(rclcpp::CallbackGroupType::Reentrant);
 
@@ -98,17 +98,17 @@ void CoveragePathExecutor::setupInterfaces()
     pub_done_     = create_publisher<std_msgs::msg::Bool>   ("~/done",     10);
 }
 
-void CoveragePathExecutor::printBanner() const
+void CoveragePath::printBanner() const
 {
     const std::string sep(56, '-');
     RCLCPP_INFO(get_logger(), "%s", sep.c_str());
-    RCLCPP_INFO(get_logger(), "  CoveragePathExecutor (C++) 已启动");
+    RCLCPP_INFO(get_logger(), "  CoveragePath (C++) 已启动");
     RCLCPP_INFO(get_logger(), "  路径文件:   %s",
         path_file_.empty() ? "(未指定)" : path_file_.c_str());
     RCLCPP_INFO(get_logger(), "  总路径点:   %zu",  total_);
     RCLCPP_INFO(get_logger(), "  坐标系:     %s",   frame_id_.c_str());
     RCLCPP_INFO(get_logger(), "  跳过失败:   %s",   skip_on_failure_ ? "true" : "false");
-    RCLCPP_INFO(get_logger(), "  ~/start  ~/pause  ~/resume  ~/cancel");
+    RCLCPP_INFO(get_logger(), "  ~/set_path_and_start  ~/pause  ~/resume  ~/cancel");
     RCLCPP_INFO(get_logger(), "%s", sep.c_str());
 }
 
@@ -116,7 +116,7 @@ void CoveragePathExecutor::printBanner() const
 // YAML 加载
 // ─────────────────────────────────────────────────────────────────────────────
 
-bool CoveragePathExecutor::loadPath(const std::string & path_file)
+bool CoveragePath::loadPath(const std::string & path_file)
 {
     if (!fs::exists(path_file)) {
         RCLCPP_ERROR(get_logger(), "路径文件不存在: %s", path_file.c_str());
@@ -125,8 +125,6 @@ bool CoveragePathExecutor::loadPath(const std::string & path_file)
 
     try {
         YAML::Node root = YAML::LoadFile(path_file);
-
-        // 支持顶层 path 键或整个文件就是路径段
         YAML::Node sect = root["path"] ? root["path"] : root;
 
         if (!sect["poses"]) {
@@ -134,7 +132,6 @@ bool CoveragePathExecutor::loadPath(const std::string & path_file)
             return false;
         }
 
-        // frame_id 处理：若为 "undefined" 则回退到参数值
         if (sect["frame_id"]) {
             std::string yf = sect["frame_id"].as<std::string>();
             if (yf != "undefined" && !yf.empty()) {
@@ -176,7 +173,7 @@ bool CoveragePathExecutor::loadPath(const std::string & path_file)
 // 地图热切换
 // ─────────────────────────────────────────────────────────────────────────────
 
-bool CoveragePathExecutor::reloadMap(const std::string & map_file)
+bool CoveragePath::reloadMap(const std::string & map_file)
 {
     if (!fs::exists(map_file)) {
         RCLCPP_ERROR(get_logger(), "地图文件不存在: %s", map_file.c_str());
@@ -214,7 +211,7 @@ bool CoveragePathExecutor::reloadMap(const std::string & map_file)
 // 目录扫描 — 按内容自动识别地图文件和路径文件
 // ─────────────────────────────────────────────────────────────────────────────
 
-bool CoveragePathExecutor::discoverFiles(
+bool CoveragePath::discoverFiles(
     const std::string & map_dir,
     std::string       & map_file,
     std::string       & path_file,
@@ -272,7 +269,7 @@ bool CoveragePathExecutor::discoverFiles(
 // 控制服务回调
 // ─────────────────────────────────────────────────────────────────────────────
 
-void CoveragePathExecutor::svcSetPathAndStart(
+void CoveragePath::svcSetPathAndStart(
     const SetPathAndStart::Request::SharedPtr req,
     SetPathAndStart::Response::SharedPtr       res)
 {
@@ -287,7 +284,6 @@ void CoveragePathExecutor::svcSetPathAndStart(
         return;
     }
 
-    // 扫目录，自动识别地图文件和路径文件
     std::string map_file, path_file, err;
     if (!discoverFiles(req->map_dir, map_file, path_file, err)) {
         res->success = false;
@@ -295,14 +291,12 @@ void CoveragePathExecutor::svcSetPathAndStart(
         return;
     }
 
-    // 热切换地图
     if (!reloadMap(map_file)) {
         res->success = false;
         res->message = "地图切换失败: " + map_file;
         return;
     }
 
-    // 加载路径
     if (!loadPath(path_file)) {
         res->success = false;
         res->message = "路径加载失败: " + path_file;
@@ -311,7 +305,7 @@ void CoveragePathExecutor::svcSetPathAndStart(
 
     path_file_ = path_file;
     resetState();
-    exec_thread_ = std::thread(&CoveragePathExecutor::runExecution, this);
+    exec_thread_ = std::thread(&CoveragePath::runExecution, this);
     exec_thread_.detach();
     res->success = true;
     res->message = "开始导航，共 " + std::to_string(total_) + " 个路径点"
@@ -319,8 +313,8 @@ void CoveragePathExecutor::svcSetPathAndStart(
                    "\n  路径: " + path_file;
 }
 
-void CoveragePathExecutor::svcStart(const Trigger::Request::SharedPtr /*req*/,
-                                    Trigger::Response::SharedPtr       res)
+void CoveragePath::svcStart(const Trigger::Request::SharedPtr /*req*/,
+                             Trigger::Response::SharedPtr       res)
 {
     if (running_.load()) {
         res->success = false;
@@ -329,18 +323,18 @@ void CoveragePathExecutor::svcStart(const Trigger::Request::SharedPtr /*req*/,
     }
     if (all_poses_.empty()) {
         res->success = false;
-        res->message = "路径为空，请检查 path_file 参数";
+        res->message = "路径为空，请先调用 ~/set_path_and_start";
         return;
     }
     resetState();
-    exec_thread_ = std::thread(&CoveragePathExecutor::runExecution, this);
+    exec_thread_ = std::thread(&CoveragePath::runExecution, this);
     exec_thread_.detach();
     res->success = true;
     res->message = "开始覆盖导航，共 " + std::to_string(total_) + " 个路径点";
 }
 
-void CoveragePathExecutor::svcPause(const Trigger::Request::SharedPtr /*req*/,
-                                    Trigger::Response::SharedPtr       res)
+void CoveragePath::svcPause(const Trigger::Request::SharedPtr /*req*/,
+                             Trigger::Response::SharedPtr       res)
 {
     if (!running_.load() || paused_.load()) {
         res->success = false;
@@ -355,8 +349,8 @@ void CoveragePathExecutor::svcPause(const Trigger::Request::SharedPtr /*req*/,
                    "/" + std::to_string(total_);
 }
 
-void CoveragePathExecutor::svcResume(const Trigger::Request::SharedPtr /*req*/,
-                                     Trigger::Response::SharedPtr       res)
+void CoveragePath::svcResume(const Trigger::Request::SharedPtr /*req*/,
+                              Trigger::Response::SharedPtr       res)
 {
     if (!running_.load() || !paused_.load()) {
         res->success = false;
@@ -369,8 +363,8 @@ void CoveragePathExecutor::svcResume(const Trigger::Request::SharedPtr /*req*/,
     res->message = "继续执行，从第 " + std::to_string(resume_index_) + " 个路径点";
 }
 
-void CoveragePathExecutor::svcCancel(const Trigger::Request::SharedPtr /*req*/,
-                                     Trigger::Response::SharedPtr       res)
+void CoveragePath::svcCancel(const Trigger::Request::SharedPtr /*req*/,
+                              Trigger::Response::SharedPtr       res)
 {
     cancelled_.store(true);
     paused_.store(false);
@@ -384,7 +378,7 @@ void CoveragePathExecutor::svcCancel(const Trigger::Request::SharedPtr /*req*/,
 // 执行主循环（独立线程）
 // ─────────────────────────────────────────────────────────────────────────────
 
-void CoveragePathExecutor::runExecution()
+void CoveragePath::runExecution()
 {
     running_.store(true);
     start_time_ = std::chrono::steady_clock::now();
@@ -399,13 +393,11 @@ void CoveragePathExecutor::runExecution()
     RCLCPP_INFO(get_logger(), "Nav2 已就绪，开始覆盖导航");
 
     while (resume_index_ < total_ && !cancelled_.load()) {
-        // 等待 resume
         while (paused_.load() && !cancelled_.load()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
         if (cancelled_.load()) break;
 
-        // 构造剩余 poses 切片
         std::vector<PoseStamped> remaining(
             all_poses_.begin() + static_cast<long>(resume_index_),
             all_poses_.end());
@@ -460,7 +452,7 @@ void CoveragePathExecutor::runExecution()
 // 发送 Action 并同步等待结果
 // ─────────────────────────────────────────────────────────────────────────────
 
-std::string CoveragePathExecutor::sendAndWait(const std::vector<PoseStamped> & poses)
+std::string CoveragePath::sendAndWait(const std::vector<PoseStamped> & poses)
 {
     auto sync_mutex = std::make_shared<std::mutex>();
     auto sync_cv    = std::make_shared<std::condition_variable>();
@@ -472,7 +464,6 @@ std::string CoveragePathExecutor::sendAndWait(const std::vector<PoseStamped> & p
 
     auto send_opts = rclcpp_action::Client<NavigateThroughPoses>::SendGoalOptions{};
 
-    // ① 目标接受/拒绝
     send_opts.goal_response_callback =
         [this, sync_mutex, sync_cv, result_str, done_flag]
         (const NavGoalHandle::SharedPtr & gh)
@@ -489,7 +480,6 @@ std::string CoveragePathExecutor::sendAndWait(const std::vector<PoseStamped> & p
         goal_handle_ = gh;
     };
 
-    // ② Feedback：更新 remaining，打印进度
     send_opts.feedback_callback =
         [this](NavGoalHandle::SharedPtr /*gh*/,
                const NavigateThroughPoses::Feedback::ConstSharedPtr fb)
@@ -498,7 +488,6 @@ std::string CoveragePathExecutor::sendAndWait(const std::vector<PoseStamped> & p
         printProgress();
     };
 
-    // ③ 结果
     send_opts.result_callback =
         [this, sync_mutex, sync_cv, result_str, done_flag]
         (const NavGoalHandle::WrappedResult & res)
@@ -520,7 +509,6 @@ std::string CoveragePathExecutor::sendAndWait(const std::vector<PoseStamped> & p
 
     nav_client_->async_send_goal(goal, send_opts);
 
-    // 阻塞等待，每 100ms 检查 pause/cancel
     std::unique_lock<std::mutex> ul(*sync_mutex);
     while (!sync_cv->wait_for(ul, std::chrono::milliseconds(100),
                               [&done_flag] { return *done_flag; })) {
@@ -538,7 +526,7 @@ std::string CoveragePathExecutor::sendAndWait(const std::vector<PoseStamped> & p
 // 取消当前 Goal
 // ─────────────────────────────────────────────────────────────────────────────
 
-void CoveragePathExecutor::cancelCurrentGoal()
+void CoveragePath::cancelCurrentGoal()
 {
     NavGoalHandle::SharedPtr gh;
     {
@@ -556,7 +544,7 @@ void CoveragePathExecutor::cancelCurrentGoal()
 // 进度与状态
 // ─────────────────────────────────────────────────────────────────────────────
 
-void CoveragePathExecutor::printProgress()
+void CoveragePath::printProgress()
 {
     if (total_ == 0) return;
 
@@ -584,7 +572,7 @@ void CoveragePathExecutor::printProgress()
     pub_progress_->publish(msg);
 }
 
-void CoveragePathExecutor::finish(bool success)
+void CoveragePath::finish(bool success)
 {
     printf("\n");
     running_.store(false);
@@ -609,7 +597,7 @@ void CoveragePathExecutor::finish(bool success)
     pub_done_->publish(msg);
 }
 
-void CoveragePathExecutor::resetState()
+void CoveragePath::resetState()
 {
     resume_index_   = 0;
     sent_count_     = 0;
@@ -621,7 +609,7 @@ void CoveragePathExecutor::resetState()
     goal_handle_ = nullptr;
 }
 
-void CoveragePathExecutor::publishStatus(const std::string & s)
+void CoveragePath::publishStatus(const std::string & s)
 {
     auto msg = std_msgs::msg::String{};
     msg.data = s;
@@ -633,7 +621,7 @@ void CoveragePathExecutor::publishStatus(const std::string & s)
 // 静态工具函数
 // ─────────────────────────────────────────────────────────────────────────────
 
-std::string CoveragePathExecutor::fmtTime(double seconds)
+std::string CoveragePath::fmtTime(double seconds)
 {
     int s = static_cast<int>(seconds);
     if (s < 60)   return std::to_string(s) + "s";
@@ -641,7 +629,7 @@ std::string CoveragePathExecutor::fmtTime(double seconds)
     return std::to_string(s / 3600) + "h" + std::to_string((s % 3600) / 60) + "m";
 }
 
-std::string CoveragePathExecutor::progressBar(double pct, int width)
+std::string CoveragePath::progressBar(double pct, int width)
 {
     int filled = static_cast<int>(width * pct / 100.0);
     std::string bar(filled, '#');
@@ -657,7 +645,7 @@ std::string CoveragePathExecutor::progressBar(double pct, int width)
 int main(int argc, char * argv[])
 {
     rclcpp::init(argc, argv);
-    auto node = std::make_shared<auto_construct::CoveragePathExecutor>();
+    auto node = std::make_shared<auto_construct::CoveragePath>();
     rclcpp::executors::MultiThreadedExecutor executor;
     executor.add_node(node);
     executor.spin();

@@ -8,25 +8,25 @@ bringup.launch.py
     ros2 launch auto_construct bringup.launch.py
 
 启动后，只需给出地图目录即可开始导航:
-    ros2 service call /coverage_path_executor/set_path_and_start \\
+    ros2 service call /coverage_path/set_path_and_start \\
         auto_construct/srv/SetPathAndStart \\
         "{map_dir: '/home/nic/ROS/ROS/map/maps/map_20260329_211503'}"
 
 切换到另一张地图 (先 cancel):
-    ros2 service call /coverage_path_executor/cancel std_srvs/srv/Trigger {}
-    ros2 service call /coverage_path_executor/set_path_and_start \\
+    ros2 service call /coverage_path/cancel std_srvs/srv/Trigger {}
+    ros2 service call /coverage_path/set_path_and_start \\
         auto_construct/srv/SetPathAndStart \\
         "{map_dir: '/home/nic/ROS/ROS/map/maps/map_20260401_090000'}"
 
 其他控制:
-    ros2 service call /coverage_path_executor/pause  std_srvs/srv/Trigger {}
-    ros2 service call /coverage_path_executor/resume std_srvs/srv/Trigger {}
-    ros2 service call /coverage_path_executor/cancel std_srvs/srv/Trigger {}
+    ros2 service call /coverage_path/pause  std_srvs/srv/Trigger {}
+    ros2 service call /coverage_path/resume std_srvs/srv/Trigger {}
+    ros2 service call /coverage_path/cancel std_srvs/srv/Trigger {}
 
 监控进度:
-    ros2 topic echo /coverage_path_executor/status
-    ros2 topic echo /coverage_path_executor/progress
-    ros2 topic echo /coverage_path_executor/done
+    ros2 topic echo /coverage_path/status
+    ros2 topic echo /coverage_path/progress
+    ros2 topic echo /coverage_path/done
 
 可选参数:
     params_file     Nav2 参数文件路径 (默认 auto_construct/config/nav2_params.yaml)
@@ -96,8 +96,8 @@ def launch_setup(context, *args, **kwargs):
     # ── 覆盖路径执行节点 ──────────────────────────────────────────────────────
     executor_node = Node(
         package='auto_construct',
-        executable='coverage_path_executor',
-        name='coverage_path_executor',
+        executable='coverage_path',
+        name='coverage_path',
         output='screen',
         emulate_tty=True,
         parameters=[{
@@ -113,7 +113,7 @@ def launch_setup(context, *args, **kwargs):
         LogInfo(msg='[bringup] Nav2 + CoveragePathExecutor 启动中...'),
         LogInfo(msg='[bringup] 就绪后调用 set_path_and_start service 开始导航'),
         LogInfo(msg='[bringup] 示例:'),
-        LogInfo(msg='[bringup]   ros2 service call /coverage_path_executor/set_path_and_start \\'),
+        LogInfo(msg='[bringup]   ros2 service call /coverage_path/set_path_and_start \\'),
         LogInfo(msg='[bringup]       auto_construct/srv/SetPathAndStart \\'),
         LogInfo(msg='[bringup]       "{map_dir: \'<地图目录完整路径>\'}"'),
         LogInfo(msg='[bringup] ══════════════════════════════════════════════'),

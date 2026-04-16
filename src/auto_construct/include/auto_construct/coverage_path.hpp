@@ -1,7 +1,7 @@
 #pragma once
 
 /**
- * coverage_path_executor.hpp
+ * coverage_path.hpp
  *
  * 覆盖路径执行节点 — 头文件
  *
@@ -54,15 +54,15 @@ using SetPathAndStart      = auto_construct::srv::SetPathAndStart;
 using LoadMap              = nav2_msgs::srv::LoadMap;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CoveragePathExecutor
+// CoveragePath
 // ─────────────────────────────────────────────────────────────────────────────
-class CoveragePathExecutor : public rclcpp::Node
+class CoveragePath : public rclcpp::Node
 {
 public:
-    explicit CoveragePathExecutor(
+    explicit CoveragePath(
         const rclcpp::NodeOptions & opts = rclcpp::NodeOptions{});
 
-    ~CoveragePathExecutor() override;
+    ~CoveragePath() override;
 
 private:
     // ── 初始化 ────────────────────────────────────────────────────────────────
@@ -71,36 +71,8 @@ private:
     void printBanner() const;
 
     // ── YAML 加载 ─────────────────────────────────────────────────────────────
-    /**
-     * 从文件加载覆盖路径。
-     * 支持格式:
-     *   path:
-     *     frame_id: map          # "undefined" → 回退到 frame_id 参数
-     *     poses:
-     *       - position:    {x, y, z}
-     *         orientation: {x, y, z, w}
-     * @return true  加载成功
-     * @return false 文件不存在 / 格式错误
-     */
     bool loadPath(const std::string & path_file);
-
-    /**
-     * 通过 /map_server/load_map 热切换 Nav2 地图。
-     * @return true  切换成功
-     * @return false 服务不可用 / 文件不存在 / 超时
-     */
     bool reloadMap(const std::string & map_file);
-
-    /**
-     * 扫描目录，按内容自动识别地图文件和路径文件。
-     *   地图文件 — 含 image: 字段 (Nav2 map_server 格式)
-     *   路径文件 — 含 poses: 字段 (opennav_coverage 格式)
-     * @param[out] map_file   识别到的地图文件完整路径
-     * @param[out] path_file  识别到的路径文件完整路径
-     * @param[out] error_msg  失败原因
-     * @return true  两个文件均找到
-     * @return false 目录不存在 / 找不到其中一个文件
-     */
     bool discoverFiles(const std::string & map_dir,
                        std::string       & map_file,
                        std::string       & path_file,
@@ -119,16 +91,8 @@ private:
                    Trigger::Response::SharedPtr       res);
 
     // ── 执行主循环 ────────────────────────────────────────────────────────────
-    /** 在独立线程中运行；由 svcStart() / svcSetPathAndStart() 启动。 */
     void runExecution();
-
-    /**
-     * 发送 NavigateThroughPoses 并同步阻塞等待结果。
-     * @return "SUCCEEDED" | "PAUSED" | "CANCELLED" | "FAILED"
-     */
     std::string sendAndWait(const std::vector<PoseStamped> & poses);
-
-    /** 取消当前正在执行的 Nav2 goal（线程安全）。 */
     void cancelCurrentGoal();
 
     // ── 状态与进度 ────────────────────────────────────────────────────────────
@@ -148,7 +112,7 @@ private:
     std::string frame_id_;
     bool        skip_on_failure_{true};
     bool        autostart_{false};
-    bool        map_loaded_{false};   ///< 是否已通过 load_map 加载过地图
+    bool        map_loaded_{false};
 
     // ─────────────────────────────────────────────────────────────────────────
     // ROS 接口
@@ -179,9 +143,9 @@ private:
     // ─────────────────────────────────────────────────────────────────────────
     // 执行状态（线程间共享）
     // ─────────────────────────────────────────────────────────────────────────
-    std::size_t          resume_index_{0};   ///< 下次从哪个 index 开始发送
-    std::size_t          sent_count_{0};     ///< 本次 action 发出的 pose 数量
-    std::atomic<int>     last_remaining_{0}; ///< 最新 feedback 中的 remaining
+    std::size_t          resume_index_{0};
+    std::size_t          sent_count_{0};
+    std::atomic<int>     last_remaining_{0};
 
     std::atomic<bool>    paused_{false};
     std::atomic<bool>    cancelled_{false};
