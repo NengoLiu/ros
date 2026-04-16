@@ -13,8 +13,8 @@
  *                local_costmap.global_frame=lidar
  *
  * 传感器 Topic:
- *   点云:  /fastlio2/body_cloud  (PointCloud2, body frame)
- *   里程计: /fastlio2/lio_odom   (Odometry)
+ *   点云:   /fastlio2/body_cloud  (PointCloud2, body frame)
+ *   里程计: /fastlio2/lio_odom    (Odometry)
  */
 
 #include <atomic>
@@ -39,6 +39,8 @@
 #include <std_msgs/msg/string.hpp>
 #include <std_srvs/srv/trigger.hpp>
 
+#include <auto_construct/srv/set_path_and_start.hpp>
+
 namespace auto_construct
 {
 
@@ -47,6 +49,7 @@ using NavigateThroughPoses = nav2_msgs::action::NavigateThroughPoses;
 using NavGoalHandle        = rclcpp_action::ClientGoalHandle<NavigateThroughPoses>;
 using Trigger              = std_srvs::srv::Trigger;
 using PoseStamped          = geometry_msgs::msg::PoseStamped;
+using SetPathAndStart      = auto_construct::srv::SetPathAndStart;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CoveragePathExecutor
@@ -80,6 +83,8 @@ private:
     bool loadPath(const std::string & path_file);
 
     // ── 控制服务回调 ──────────────────────────────────────────────────────────
+    void svcSetPathAndStart(const SetPathAndStart::Request::SharedPtr req,
+                            SetPathAndStart::Response::SharedPtr       res);
     void svcStart (const Trigger::Request::SharedPtr req,
                    Trigger::Response::SharedPtr       res);
     void svcPause (const Trigger::Request::SharedPtr req,
@@ -90,7 +95,7 @@ private:
                    Trigger::Response::SharedPtr       res);
 
     // ── 执行主循环 ────────────────────────────────────────────────────────────
-    /** 在独立线程中运行；由 svcStart() 启动。 */
+    /** 在独立线程中运行；由 svcStart() / svcSetPathAndStart() 启动。 */
     void runExecution();
 
     /**
@@ -127,10 +132,11 @@ private:
 
     rclcpp_action::Client<NavigateThroughPoses>::SharedPtr nav_client_;
 
-    rclcpp::Service<Trigger>::SharedPtr start_srv_;
-    rclcpp::Service<Trigger>::SharedPtr pause_srv_;
-    rclcpp::Service<Trigger>::SharedPtr resume_srv_;
-    rclcpp::Service<Trigger>::SharedPtr cancel_srv_;
+    rclcpp::Service<SetPathAndStart>::SharedPtr set_path_srv_;
+    rclcpp::Service<Trigger>::SharedPtr         start_srv_;
+    rclcpp::Service<Trigger>::SharedPtr         pause_srv_;
+    rclcpp::Service<Trigger>::SharedPtr         resume_srv_;
+    rclcpp::Service<Trigger>::SharedPtr         cancel_srv_;
 
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr  pub_status_;
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr pub_progress_;

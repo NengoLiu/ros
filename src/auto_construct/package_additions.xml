@@ -1,7 +1,12 @@
 <!--
-  将以下 <depend> 标签合并到你的 auto_construct/package.xml 中
+  将以下标签合并到你的 auto_construct/package.xml 中
   (放在现有 depend 标签附近即可，不要重复添加已有的)
 -->
+
+  <!-- 自定义 Service 生成 -->
+  <buildtool_depend>rosidl_default_generators</buildtool_depend>
+  <exec_depend>rosidl_default_runtime</exec_depend>
+  <member_of_group>rosidl_interface_packages</member_of_group>
 
   <!-- 覆盖路径执行节点依赖 -->
   <depend>rclcpp</depend>

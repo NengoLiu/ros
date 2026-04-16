@@ -78,6 +78,8 @@ void CoveragePathExecutor::setupInterfaces()
         this, "navigate_through_poses", cb_group_);
 
     const auto qos = rmw_qos_profile_services_default;
+    set_path_srv_ = create_service<SetPathAndStart>("~/set_path_and_start",
+        [this](auto rq, auto rs){ svcSetPathAndStart(rq, rs); }, qos, cb_group_);
     start_srv_  = create_service<Trigger>("~/start",
         [this](auto rq, auto rs){ svcStart(rq, rs);  }, qos, cb_group_);
     pause_srv_  = create_service<Trigger>("~/pause",
@@ -169,6 +171,33 @@ bool CoveragePathExecutor::loadPath(const std::string & path_file)
 // ─────────────────────────────────────────────────────────────────────────────
 // 控制服务回调
 // ─────────────────────────────────────────────────────────────────────────────
+
+void CoveragePathExecutor::svcSetPathAndStart(
+    const SetPathAndStart::Request::SharedPtr req,
+    SetPathAndStart::Response::SharedPtr       res)
+{
+    if (running_.load()) {
+        res->success = false;
+        res->message = "任务已在执行中，请先调用 ~/cancel";
+        return;
+    }
+    if (req->path_file.empty()) {
+        res->success = false;
+        res->message = "path_file 不能为空";
+        return;
+    }
+    if (!loadPath(req->path_file)) {
+        res->success = false;
+        res->message = "路径加载失败: " + req->path_file;
+        return;
+    }
+    path_file_ = req->path_file;
+    resetState();
+    exec_thread_ = std::thread(&CoveragePathExecutor::runExecution, this);
+    exec_thread_.detach();
+    res->success = true;
+    res->message = "已加载路径并开始导航，共 " + std::to_string(total_) + " 个路径点";
+}
 
 void CoveragePathExecutor::svcStart(const Trigger::Request::SharedPtr /*req*/,
                                     Trigger::Response::SharedPtr       res)

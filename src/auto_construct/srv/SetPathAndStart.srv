@@ -1,0 +1,9 @@
+# 设定覆盖路径文件并立即开始导航
+# 示例:
+#   ros2 service call /coverage_path_executor/set_path_and_start \
+#       auto_construct/srv/SetPathAndStart \
+#       "{path_file: '/home/nic/ROS/ROS/map/maps/map_20260329_211503/coverage_path_cache.yaml'}"
+string path_file
+---
+bool   success
+string message

@@ -11,8 +11,14 @@ find_package(std_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(action_msgs REQUIRED)
 find_package(yaml-cpp REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
 
-# ── 可执行目标 (在 ament_target_dependencies 之前添加) ───────────────────────
+# ── 自定义 Service 生成 (必须在 add_executable 之前) ─────────────────────────
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "srv/SetPathAndStart.srv"
+)
+
+# ── 可执行目标 ───────────────────────────────────────────────────────────────
 add_executable(coverage_path_executor
   src/coverage_path_executor.cpp
 )
@@ -36,8 +42,13 @@ ament_target_dependencies(coverage_path_executor
   action_msgs
 )
 
+# 链接 yaml-cpp 和自定义 Service 的 C++ typesupport
+rosidl_get_typesupport_target(cpp_typesupport_target
+  ${PROJECT_NAME} "rosidl_typesupport_cpp")
+
 target_link_libraries(coverage_path_executor
   yaml-cpp
+  "${cpp_typesupport_target}"
 )
 
 # ── 安装可执行文件 ────────────────────────────────────────────────────────────
@@ -45,7 +56,7 @@ install(TARGETS coverage_path_executor
   DESTINATION lib/${PROJECT_NAME}
 )
 
-# ── 安装 launch / config 目录 ─────────────────────────────────────────────────
+# ── 安装 launch / config / srv 目录 ──────────────────────────────────────────
 # 如果你的 CMakeLists.txt 中已有类似的 install(DIRECTORY ...) 语句，
 # 只需在 DIRECTORY 后追加 launch config 即可，不要重复写 install()
 install(
