@@ -1,0 +1,36 @@
+<!--
+  将以下 <depend> 标签合并到你的 auto_construct/package.xml 中
+  (放在现有 depend 标签附近即可，不要重复添加已有的)
+-->
+
+  <!-- 覆盖路径执行节点依赖 -->
+  <depend>rclcpp</depend>
+  <depend>rclcpp_action</depend>
+  <depend>nav2_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
+  <depend>action_msgs</depend>
+  <depend>libyaml-cpp-dev</depend>
+
+  <!-- Nav2 导航栈依赖 (launch 文件运行时) -->
+  <exec_depend>nav2_bringup</exec_depend>
+  <exec_depend>nav2_bt_navigator</exec_depend>
+  <exec_depend>nav2_controller</exec_depend>
+  <exec_depend>nav2_planner</exec_depend>
+  <exec_depend>nav2_smoother</exec_depend>
+  <exec_depend>nav2_behaviors</exec_depend>
+  <exec_depend>nav2_waypoint_follower</exec_depend>
+  <exec_depend>nav2_map_server</exec_depend>
+  <exec_depend>nav2_lifecycle_manager</exec_depend>
+  <exec_depend>nav2_mppi_controller</exec_depend>
+  <exec_depend>nav2_navfn_planner</exec_depend>
+  <exec_depend>nav2_costmap_2d</exec_depend>
+  <exec_depend>nav2_velocity_smoother</exec_depend>
+
+  <!-- opennav_coverage (如果使用 CoverageNavigator plugin) -->
+  <exec_depend>opennav_coverage</exec_depend>
+  <exec_depend>opennav_coverage_msgs</exec_depend>
+
+  <!-- TF 工具 -->
+  <exec_depend>tf2_ros</exec_depend>
