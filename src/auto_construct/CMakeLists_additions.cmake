@@ -22,6 +22,10 @@ target_include_directories(coverage_path_executor PUBLIC
   $<INSTALL_INTERFACE:include>
 )
 
+install(DIRECTORY include/
+  DESTINATION include/
+)
+
 ament_target_dependencies(coverage_path_executor
   rclcpp
   rclcpp_action
